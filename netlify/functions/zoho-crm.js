@@ -164,17 +164,17 @@ async function createDeal(dealData, headers) {
         'Authorization': `Bearer ${ZOHO_ACCESS_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        data: [{
-          Deal_Name: dealData.dealName || '',
-          Stage: dealData.stage || 'Qualification',
-          Probability: dealData.probability || 25,
-          Amount: dealData.value || '',
-          Closing_Date: dealData.expectedCloseDate || '',
-          Contact_Name: dealData.contactId || '',
-          Description: dealData.description || ''
-        }]
-      })
+              body: JSON.stringify({
+          data: [{
+            Deal_Name: dealData.dealName || '',
+            Stage: dealData.stage || 'Qualification',
+            Probability: dealData.probability || 25,
+            Amount: dealData.value || '',
+            Closing_Date: dealData.expectedCloseDate && dealData.expectedCloseDate !== 'Not mentioned' && dealData.expectedCloseDate !== 'Next month' ? dealData.expectedCloseDate : '',
+            Contact_Name: dealData.contactId || '',
+            Description: dealData.description || ''
+          }]
+        })
     });
 
     const result = await response.json();
