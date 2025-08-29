@@ -153,6 +153,10 @@ async function createContact(contactData, headers) {
 }
 
 async function createDeal(dealData, headers) {
+  console.log('=== createDeal called ===');
+  console.log('Deal Data:', dealData);
+  console.log('Using ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? 'TOKEN SET' : 'TOKEN NOT SET');
+  
   try {
     const response = await fetch('https://www.zohoapis.com/crm/v3/Deals', {
       method: 'POST',
@@ -174,6 +178,8 @@ async function createDeal(dealData, headers) {
     });
 
     const result = await response.json();
+    console.log('Zoho API response:', result);
+    console.log('Response status:', response.status);
     
     if (response.ok) {
       return {
@@ -185,12 +191,14 @@ async function createDeal(dealData, headers) {
         })
       };
     } else {
+      console.log('Zoho API error:', result);
       return {
         statusCode: response.status,
         headers,
         body: JSON.stringify({ 
           success: false, 
-          error: result.message || 'Failed to create deal' 
+          error: result.message || result.details?.api_name || 'Failed to create deal',
+          zohoError: result
         })
       };
     }
