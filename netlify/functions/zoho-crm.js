@@ -67,6 +67,9 @@ exports.handler = async (event, context) => {
       const { action, data } = JSON.parse(event.body);
 
       switch (action) {
+        case 'updateCRM':
+          return await updateCRM(data, headers);
+        
         case 'createContact':
           return await createContact(data, headers);
         
@@ -101,12 +104,180 @@ exports.handler = async (event, context) => {
   };
 };
 
+async function updateCRM(crmData, headers) {
+  console.log('=== updateCRM called ===');
+  console.log('CRM Data:', crmData);
+  
+  try {
+    let contactId = null;
+    
+    // Step 1: Search for existing contact by email
+    if (crmData.contactInfo && crmData.contactInfo.email && crmData.contactInfo.email !== 'Not mentioned') {
+      console.log('Searching for existing contact with email:', crmData.contactInfo.email);
+      
+      const searchResponse = await fetch(`https://www.zohoapis.com/crm/v3/Contacts/search?email=${encodeURIComponent(crmData.contactInfo.email)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${ZOHO_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const searchResult = await searchResponse.json();
+      console.log('Search result:', searchResult);
+      
+      if (searchResponse.ok && searchResult.data && searchResult.data.length > 0) {
+        contactId = searchResult.data[0].id;
+        console.log('Found existing contact:', contactId);
+      } else {
+        console.log('No existing contact found, will create new one');
+      }
+    }
+    
+    // Step 2: Create contact only if not found
+    if (!contactId && crmData.contactInfo && crmData.contactInfo.email && crmData.contactInfo.email !== 'Not mentioned') {
+      console.log('Creating new contact...');
+      
+      const fullName = crmData.contactInfo.name || '';
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || 'Unknown';
+      
+      const contactResponse = await fetch('https://www.zohoapis.com/crm/v3/Contacts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ZOHO_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          data: [{
+            First_Name: firstName,
+            Last_Name: lastName,
+            Email: crmData.contactInfo.email,
+            Phone: crmData.contactInfo.phone || '',
+            Title: crmData.contactInfo.title || '',
+            Company: crmData.contactInfo.company || ''
+          }]
+        })
+      });
+      
+      const contactResult = await contactResponse.json();
+      
+      if (contactResponse.ok) {
+        contactId = contactResult.data[0].details.id;
+        console.log('New contact created:', contactId);
+      } else {
+        console.log('Contact creation failed:', contactResult);
+        return {
+          statusCode: contactResponse.status,
+          headers,
+          body: JSON.stringify({ 
+            success: false, 
+            error: 'Failed to create contact',
+            zohoError: contactResult
+          })
+        };
+      }
+    }
+    
+    // Step 3: Create meeting record (deal) linked to contact
+    if (contactId && crmData.dealInfo && crmData.dealInfo.dealName) {
+      console.log('Creating meeting record (deal) for contact:', contactId);
+      
+      const dealResponse = await fetch('https://www.zohoapis.com/crm/v3/Deals', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ZOHO_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          data: [{
+            Deal_Name: crmData.dealInfo.dealName,
+            Stage: crmData.dealInfo.stage || 'Qualification',
+            Probability: crmData.dealInfo.probability || 25,
+            Amount: crmData.dealInfo.value || '',
+            Closing_Date: crmData.dealInfo.expectedCloseDate && crmData.dealInfo.expectedCloseDate !== 'Not mentioned' && crmData.dealInfo.expectedCloseDate !== 'Next month' ? crmData.dealInfo.expectedCloseDate : '',
+            Contact_Name: contactId,
+            Description: `Meeting Outcome: ${crmData.meetingOutcome}\n\nPain Points: ${crmData.painPoints.join(', ')}\n\nRequirements: ${crmData.requirements.join(', ')}\n\nBudget Discussion: ${crmData.budgetDiscussion}\n\nCompetition: ${crmData.competition}\n\nDecision Maker: ${crmData.decisionMaker}\n\nNext Follow-up: ${crmData.nextFollowUp}`
+          }]
+        })
+      });
+      
+      const dealResult = await dealResponse.json();
+      
+      if (dealResponse.ok) {
+        console.log('Meeting record created successfully');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            message: 'CRM updated successfully',
+            contactId: contactId,
+            dealId: dealResult.data[0].details.id,
+            action: contactId ? 'Contact found and meeting record created' : 'New contact created and meeting record created'
+          })
+        };
+      } else {
+        console.log('Meeting record creation failed:', dealResult);
+        return {
+          statusCode: dealResponse.status,
+          headers,
+          body: JSON.stringify({ 
+            success: false, 
+            error: 'Failed to create meeting record',
+            zohoError: dealResult
+          })
+        };
+      }
+    }
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        success: true, 
+        message: 'CRM updated successfully',
+        contactId: contactId,
+        action: 'Contact processed (existing or new)'
+      })
+    };
+    
+  } catch (error) {
+    console.error('CRM update error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error during CRM update' 
+      })
+    };
+  }
+}
+
 async function createContact(contactData, headers) {
   console.log('=== createContact called ===');
   console.log('Contact Data:', contactData);
   console.log('Using ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? 'TOKEN SET' : 'TOKEN NOT SET');
   
   try {
+    // Log the exact data being sent to Zoho
+    const zohoPayload = {
+      data: [{
+        First_Name: contactData.firstName || '',
+        Last_Name: contactData.lastName || '',
+        Email: contactData.email || '',
+        Phone: contactData.phone || '',
+        Title: contactData.title || '',
+        Company: contactData.company || ''
+      }]
+    };
+    
+    console.log('Sending to Zoho:', JSON.stringify(zohoPayload, null, 2));
+    console.log('firstName:', contactData.firstName);
+    console.log('lastName:', contactData.lastName);
+    
     const response = await fetch('https://www.zohoapis.com/crm/v3/Contacts', {
       method: 'POST',
       headers: {

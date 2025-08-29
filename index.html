@@ -2276,105 +2276,34 @@ Transcript: ${transcript}`;
                 const isValidEmail = email && email !== 'Not mentioned' && email.includes('@');
                 
                 if (isValidEmail) {
-                    // Search for existing contact using Netlify Function
-                    const searchResponse = await fetch('/.netlify/functions/zoho-crm', {
+                    // Use the new unified updateCRM action
+                    const crmResponse = await fetch('/.netlify/functions/zoho-crm', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            action: 'searchContact',
-                            data: { email: updatedCRMData.contactInfo.email }
+                            action: 'updateCRM',
+                            data: updatedCRMData
                         })
                     });
                     
-                    if (searchResponse.ok) {
-                        const searchData = await searchResponse.json();
-                        if (searchData.found && searchData.contacts.length > 0) {
-                            contactId = searchData.contacts[0].id;
-                            console.log('Found existing contact:', contactId);
-                        }
-                    }
-                    
-                    // Create contact using Netlify Function
-                    const fullName = updatedCRMData.contactInfo.name || '';
-                    const nameParts = fullName.split(' ');
-                    const firstName = nameParts[0] || '';
-                    const lastName = nameParts.slice(1).join(' ') || '';
-                    
-                    const contactResponse = await fetch('/.netlify/functions/zoho-crm', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'createContact',
-                            data: {
-                                firstName: firstName,
-                                lastName: lastName,
-                                email: updatedCRMData.contactInfo.email || '',
-                                phone: updatedCRMData.contactInfo.phone || '',
-                                title: updatedCRMData.contactInfo.title || '',
-                                company: updatedCRMData.contactInfo.company || ''
-                            }
-                        })
-                    });
-                    
-                    if (contactResponse.ok) {
-                        const contactResult = await contactResponse.json();
-                        if (contactResult.success) {
-                            contactId = contactResult.contactId;
-                            console.log('Contact created/updated:', contactId);
-                            showStatus('✅ Contact updated in Zoho CRM', 'success');
+                    if (crmResponse.ok) {
+                        const crmResult = await crmResponse.json();
+                        if (crmResult.success) {
+                            console.log('CRM updated successfully:', crmResult);
+                            showStatus(`✅ ${crmResult.message}`, 'success');
                         } else {
-                            console.error('Contact creation failed:', contactResult.error);
-                            showStatus('❌ Failed to create contact', 'error');
-                            return;
+                            console.error('CRM update failed:', crmResult.error);
+                            showStatus(`❌ CRM update failed: ${crmResult.error}`, 'error');
                         }
                     } else {
-                        console.error('Contact creation failed:', await contactResponse.text());
-                        showStatus('❌ Failed to create contact', 'error');
-                        return;
+                        console.error('CRM update failed:', await crmResponse.text());
+                        showStatus('❌ CRM update failed', 'error');
                     }
                 } else {
-                    console.log('No valid email provided, skipping contact creation');
-                    showStatus('⚠️ No valid email provided - contact creation skipped', 'info');
-                }
-                
-                // Step 2: Create/Update Deal/Opportunity
-                if (updatedCRMData.dealInfo.dealName) {
-                    const dealResponse = await fetch('/.netlify/functions/zoho-crm', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'createDeal',
-                            data: {
-                                dealName: updatedCRMData.dealInfo.dealName,
-                                stage: updatedCRMData.dealInfo.stage || 'Qualification',
-                                probability: updatedCRMData.dealInfo.probability || 25,
-                                value: updatedCRMData.dealInfo.value || '',
-                                expectedCloseDate: updatedCRMData.dealInfo.expectedCloseDate || '',
-                                contactId: contactId || '',
-                                description: `Meeting Outcome: ${updatedCRMData.meetingOutcome}\n\nPain Points: ${updatedCRMData.painPoints.join(', ')}\n\nRequirements: ${updatedCRMData.requirements.join(', ')}\n\nBudget Discussion: ${updatedCRMData.budgetDiscussion}\n\nCompetition: ${updatedCRMData.competition}\n\nDecision Maker: ${updatedCRMData.decisionMaker}\n\nNext Follow-up: ${updatedCRMData.nextFollowUp}`
-                            }
-                        })
-                    });
-                    
-                    if (dealResponse.ok) {
-                        const dealResult = await dealResponse.json();
-                        if (dealResult.success) {
-                            console.log('Deal created:', dealResult.dealId);
-                            showStatus('✅ Deal created in Zoho CRM', 'success');
-                        } else {
-                            console.error('Deal creation failed:', dealResult.error);
-                            showStatus('❌ Failed to create deal', 'error');
-                        }
-                    } else {
-                        console.error('Deal creation failed:', await dealResponse.text());
-                        showStatus('❌ Failed to create deal', 'error');
-                    }
+                    console.log('No valid email provided, skipping CRM update');
+                    showStatus('⚠️ No valid email provided - CRM update skipped', 'info');
                 }
                 
                 showStatus('🎉 CRM update completed successfully!', 'success');
