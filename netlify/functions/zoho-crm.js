@@ -20,25 +20,7 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS'
   };
 
-  // Add debug endpoint
-  if (event.httpMethod === 'GET' && event.rawPath && event.rawPath.includes('/debug')) {
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        debug: true,
-        envVars: {
-          clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
-          clientSecret: ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET',
-          accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET',
-          domain: ZOHO_DOMAIN ? 'SET' : 'NOT SET'
-        },
-        accessTokenPreview: ZOHO_ACCESS_TOKEN ? ZOHO_ACCESS_TOKEN.substring(0, 20) + '...' : 'NOT SET'
-      })
-    };
-  }
-
-  // Simple debug endpoint for any GET request
+  // Very basic debug - return immediately for GET requests
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
@@ -46,16 +28,12 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         debug: true,
         message: 'Function is working',
-        envVars: {
-          clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
-          clientSecret: ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET',
-          accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET',
-          domain: ZOHO_DOMAIN ? 'SET' : 'NOT SET'
-        },
-        accessTokenPreview: ZOHO_ACCESS_TOKEN ? ZOHO_ACCESS_TOKEN.substring(0, 20) + '...' : 'NOT SET'
+        timestamp: new Date().toISOString()
       })
     };
   }
+
+
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
