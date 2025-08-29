@@ -48,6 +48,19 @@ exports.handler = async (event, context) => {
     };
   }
 
+  // Test endpoint for POST requests
+  if (event.httpMethod === 'POST' && event.body && event.body.includes('"action":"test"')) {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: 'POST endpoint is working',
+        timestamp: new Date().toISOString()
+      })
+    };
+  }
+
   // Handle POST requests
   if (event.httpMethod === 'POST') {
     try {
@@ -115,21 +128,25 @@ async function createContact(contactData, headers) {
     const result = await response.json();
     
     if (response.ok) {
+      console.log('Contact created successfully in Zoho');
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({ 
           success: true, 
-          contactId: result.data[0].details.id 
+          contactId: result.data[0].details.id,
+          message: 'Contact created successfully'
         })
       };
     } else {
+      console.log('Zoho API error for contact:', result);
       return {
         statusCode: response.status,
         headers,
         body: JSON.stringify({ 
           success: false, 
-          error: result.message || 'Failed to create contact' 
+          error: result.message || result.details?.api_name || 'Failed to create contact',
+          zohoError: result
         })
       };
     }
