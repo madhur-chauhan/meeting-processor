@@ -1,11 +1,12 @@
 const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_ACCESS_TOKEN, ZOHO_DOMAIN } = process.env;
 
 // Debug environment variables
-console.log('Environment variables loaded:');
-console.log('ZOHO_CLIENT_ID:', ZOHO_CLIENT_ID ? 'SET' : 'NOT SET');
-console.log('ZOHO_CLIENT_SECRET:', ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET');
-console.log('ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET');
-console.log('ZOHO_DOMAIN:', ZOHO_DOMAIN ? 'SET' : 'NOT SET');
+console.log('=== ENVIRONMENT VARIABLES DEBUG ===');
+console.log('ZOHO_CLIENT_ID:', ZOHO_CLIENT_ID ? `SET (${ZOHO_CLIENT_ID.substring(0, 10)}...)` : 'NOT SET');
+console.log('ZOHO_CLIENT_SECRET:', ZOHO_CLIENT_SECRET ? `SET (${ZOHO_CLIENT_SECRET.substring(0, 10)}...)` : 'NOT SET');
+console.log('ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? `SET (${ZOHO_ACCESS_TOKEN.substring(0, 10)}...)` : 'NOT SET');
+console.log('ZOHO_DOMAIN:', ZOHO_DOMAIN ? `SET (${ZOHO_DOMAIN})` : 'NOT SET');
+console.log('=== END ENVIRONMENT VARIABLES DEBUG ===');
 
 exports.handler = async (event, context) => {
   console.log('=== Function handler called ===');
@@ -18,6 +19,43 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS'
   };
+
+  // Add debug endpoint
+  if (event.httpMethod === 'GET' && event.rawPath && event.rawPath.includes('/debug')) {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        debug: true,
+        envVars: {
+          clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
+          clientSecret: ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET',
+          accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET',
+          domain: ZOHO_DOMAIN ? 'SET' : 'NOT SET'
+        },
+        accessTokenPreview: ZOHO_ACCESS_TOKEN ? ZOHO_ACCESS_TOKEN.substring(0, 20) + '...' : 'NOT SET'
+      })
+    };
+  }
+
+  // Simple debug endpoint for any GET request
+  if (event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        debug: true,
+        message: 'Function is working',
+        envVars: {
+          clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
+          clientSecret: ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET',
+          accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET',
+          domain: ZOHO_DOMAIN ? 'SET' : 'NOT SET'
+        },
+        accessTokenPreview: ZOHO_ACCESS_TOKEN ? ZOHO_ACCESS_TOKEN.substring(0, 20) + '...' : 'NOT SET'
+      })
+    };
+  }
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
@@ -103,17 +141,23 @@ async function createContact(contactData, headers) {
         })
       };
     }
-  } catch (error) {
-    console.error('Contact creation error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: 'Internal server error during contact creation' 
-      })
-    };
-  }
+      } catch (error) {
+      console.error('Contact creation error:', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Internal server error during contact creation',
+          debug: {
+            envVars: {
+              clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
+              accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET'
+            }
+          }
+        })
+      };
+    }
 }
 
 async function createDeal(dealData, headers) {
