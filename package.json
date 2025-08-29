@@ -1,0 +1,14 @@
+{
+  "name": "meeting-processor",
+  "version": "1.0.0",
+  "description": "AI-powered meeting transcript processor with ClickUp and Zoho CRM integration",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo \"No build step needed\"",
+    "deploy": "netlify deploy --prod"
+  },
+  "keywords": ["meeting", "ai", "clickup", "zoho", "crm"],
+  "author": "Madhur Chauhan",
+  "license": "ISC"
+}

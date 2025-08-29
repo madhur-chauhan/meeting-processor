@@ -1,6 +1,17 @@
 const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_ACCESS_TOKEN, ZOHO_DOMAIN } = process.env;
 
+// Debug environment variables
+console.log('Environment variables loaded:');
+console.log('ZOHO_CLIENT_ID:', ZOHO_CLIENT_ID ? 'SET' : 'NOT SET');
+console.log('ZOHO_CLIENT_SECRET:', ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET');
+console.log('ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+console.log('ZOHO_DOMAIN:', ZOHO_DOMAIN ? 'SET' : 'NOT SET');
+
 exports.handler = async (event, context) => {
+  console.log('=== Function handler called ===');
+  console.log('HTTP Method:', event.httpMethod);
+  console.log('Request Body:', event.body);
+  
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -48,6 +59,10 @@ exports.handler = async (event, context) => {
 };
 
 async function createContact(contactData, headers) {
+  console.log('=== createContact called ===');
+  console.log('Contact Data:', contactData);
+  console.log('Using ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? 'TOKEN SET' : 'TOKEN NOT SET');
+  
   try {
     const response = await fetch('https://www.zohoapis.com/crm/v3/Contacts', {
       method: 'POST',
@@ -77,3 +92,128 @@ async function createContact(contactData, headers) {
           success: true, 
           contactId: result.data[0].details.id 
         })
+      };
+    } else {
+      return {
+        statusCode: response.status,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: result.message || 'Failed to create contact' 
+        })
+      };
+    }
+  } catch (error) {
+    console.error('Contact creation error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error during contact creation' 
+      })
+    };
+  }
+}
+
+async function createDeal(dealData, headers) {
+  try {
+    const response = await fetch('https://www.zohoapis.com/crm/v3/Deals', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ZOHO_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        data: [{
+          Deal_Name: dealData.dealName || '',
+          Stage: dealData.stage || 'Qualification',
+          Probability: dealData.probability || 25,
+          Amount: dealData.value || '',
+          Closing_Date: dealData.expectedCloseDate || '',
+          Contact_Name: dealData.contactId || '',
+          Description: dealData.description || ''
+        }]
+      })
+    });
+
+    const result = await response.json();
+    
+    if (response.ok) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          dealId: result.data[0].details.id 
+        })
+      };
+    } else {
+      return {
+        statusCode: response.status,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: result.message || 'Failed to create deal' 
+        })
+      };
+    }
+  } catch (error) {
+    console.error('Deal creation error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error during deal creation' 
+      })
+    };
+  }
+}
+
+async function searchContact(searchData, headers) {
+  try {
+    const response = await fetch(`https://www.zohoapis.com/crm/v3/Contacts/search?email=${encodeURIComponent(searchData.email)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${ZOHO_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    
+    if (response.ok) {
+      const found = result.data && result.data.length > 0;
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          found: found,
+          contacts: found ? result.data : []
+        })
+      };
+    } else {
+      return {
+        statusCode: response.status,
+        headers,
+        body: JSON.stringify({ 
+          found: false,
+          contacts: [],
+          error: result.message || 'Failed to search contacts' 
+        })
+      };
+    }
+  } catch (error) {
+    console.error('Contact search error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        found: false,
+        contacts: [],
+        error: 'Internal server error during contact search' 
+      })
+    };
+  }
+}
