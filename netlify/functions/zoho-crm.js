@@ -1,11 +1,11 @@
 const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_ACCESS_TOKEN, ZOHO_DOMAIN } = process.env;
 
-// Debug environment variables
+// Debug environment variables - safe logging
 console.log('=== ENVIRONMENT VARIABLES DEBUG ===');
-console.log('ZOHO_CLIENT_ID:', ZOHO_CLIENT_ID ? `SET (${ZOHO_CLIENT_ID.substring(0, 10)}...)` : 'NOT SET');
-console.log('ZOHO_CLIENT_SECRET:', ZOHO_CLIENT_SECRET ? `SET (${ZOHO_CLIENT_SECRET.substring(0, 10)}...)` : 'NOT SET');
-console.log('ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? `SET (${ZOHO_ACCESS_TOKEN.substring(0, 10)}...)` : 'NOT SET');
-console.log('ZOHO_DOMAIN:', ZOHO_DOMAIN ? `SET (${ZOHO_DOMAIN})` : 'NOT SET');
+console.log('ZOHO_CLIENT_ID:', ZOHO_CLIENT_ID ? 'SET' : 'NOT SET');
+console.log('ZOHO_CLIENT_SECRET:', ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET');
+console.log('ZOHO_ACCESS_TOKEN:', ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+console.log('ZOHO_DOMAIN:', ZOHO_DOMAIN ? 'SET' : 'NOT SET');
 console.log('=== END ENVIRONMENT VARIABLES DEBUG ===');
 
 exports.handler = async (event, context) => {
@@ -28,7 +28,13 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         debug: true,
         message: 'Function is working',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        envVars: {
+          clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
+          clientSecret: ZOHO_CLIENT_SECRET ? 'SET' : 'NOT SET',
+          accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET',
+          domain: ZOHO_DOMAIN ? 'SET' : 'NOT SET'
+        }
       })
     };
   }
