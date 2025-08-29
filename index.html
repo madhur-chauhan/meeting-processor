@@ -2253,11 +2253,8 @@ Transcript: ${transcript}`;
                 return;
             }
             
-            // Check if Zoho settings are configured
-            if (!settings.zohoClientId || !settings.zohoClientSecret || !settings.zohoAccessToken) {
-                showStatus('Please configure your Zoho CRM settings first', 'error');
-                return;
-            }
+            // Note: Zoho API calls are now handled by Netlify Function
+            // No need to check local settings for API keys
             
             // Get updated CRM data from form
             const updatedCRMData = getCRMData();
@@ -2269,7 +2266,7 @@ Transcript: ${transcript}`;
             console.log('Updated CRM data:', updatedCRMData);
             
             try {
-                showStatus('🔄 Updating Zoho CRM...', 'info');
+                showStatus('🔄 Updating Zoho CRM via Netlify Function...', 'info');
                 
                 // Step 1: Create/Update Contact
                 let contactId = null;
@@ -2279,54 +2276,61 @@ Transcript: ${transcript}`;
                 const isValidEmail = email && email !== 'Not mentioned' && email.includes('@');
                 
                 if (isValidEmail) {
-                    // First, try to find existing contact by email
-                    const searchResponse = await fetch(`https://www.zohoapis.com/crm/v3/Contacts/search?email=${encodeURIComponent(updatedCRMData.contactInfo.email)}`, {
-                        method: 'GET',
+                    // Search for existing contact using Netlify Function
+                    const searchResponse = await fetch('/.netlify/functions/zoho-crm', {
+                        method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${settings.zohoAccessToken}`,
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({
+                            action: 'searchContact',
+                            data: { email: updatedCRMData.contactInfo.email }
+                        })
                     });
                     
                     if (searchResponse.ok) {
                         const searchData = await searchResponse.json();
-                        if (searchData.data && searchData.data.length > 0) {
-                            contactId = searchData.data[0].id;
+                        if (searchData.found && searchData.contacts.length > 0) {
+                            contactId = searchData.contacts[0].id;
                             console.log('Found existing contact:', contactId);
                         }
                     }
                     
-                    // Create or update contact
+                    // Create contact using Netlify Function
                     const fullName = updatedCRMData.contactInfo.name || '';
                     const nameParts = fullName.split(' ');
                     const firstName = nameParts[0] || '';
                     const lastName = nameParts.slice(1).join(' ') || '';
                     
-                    const contactData = {
-                        data: [{
-                            First_Name: firstName,
-                            Last_Name: lastName,
-                            Email: updatedCRMData.contactInfo.email || '',
-                            Phone: updatedCRMData.contactInfo.phone || '',
-                            Title: updatedCRMData.contactInfo.title || '',
-                            Company: updatedCRMData.contactInfo.company || ''
-                        }]
-                    };
-                    
-                    const contactResponse = await fetch(`https://www.zohoapis.com/crm/v3/Contacts${contactId ? `/${contactId}` : ''}`, {
-                        method: contactId ? 'PUT' : 'POST',
+                    const contactResponse = await fetch('/.netlify/functions/zoho-crm', {
+                        method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${settings.zohoAccessToken}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(contactData)
+                        body: JSON.stringify({
+                            action: 'createContact',
+                            data: {
+                                firstName: firstName,
+                                lastName: lastName,
+                                email: updatedCRMData.contactInfo.email || '',
+                                phone: updatedCRMData.contactInfo.phone || '',
+                                title: updatedCRMData.contactInfo.title || '',
+                                company: updatedCRMData.contactInfo.company || ''
+                            }
+                        })
                     });
                     
                     if (contactResponse.ok) {
                         const contactResult = await contactResponse.json();
-                        contactId = contactResult.data[0].details.id;
-                        console.log('Contact created/updated:', contactId);
-                        showStatus('✅ Contact updated in Zoho CRM', 'success');
+                        if (contactResult.success) {
+                            contactId = contactResult.contactId;
+                            console.log('Contact created/updated:', contactId);
+                            showStatus('✅ Contact updated in Zoho CRM', 'success');
+                        } else {
+                            console.error('Contact creation failed:', contactResult.error);
+                            showStatus('❌ Failed to create contact', 'error');
+                            return;
+                        }
                     } else {
                         console.error('Contact creation failed:', await contactResponse.text());
                         showStatus('❌ Failed to create contact', 'error');
@@ -2339,31 +2343,34 @@ Transcript: ${transcript}`;
                 
                 // Step 2: Create/Update Deal/Opportunity
                 if (updatedCRMData.dealInfo.dealName) {
-                    const dealData = {
-                        data: [{
-                            Deal_Name: updatedCRMData.dealInfo.dealName,
-                            Stage: updatedCRMData.dealInfo.stage || 'Qualification',
-                            Probability: updatedCRMData.dealInfo.probability || 25,
-                            Amount: updatedCRMData.dealInfo.value || '',
-                            Closing_Date: updatedCRMData.dealInfo.expectedCloseDate || '',
-                            Contact_Name: contactId || '',
-                            Description: `Meeting Outcome: ${updatedCRMData.meetingOutcome}\n\nPain Points: ${updatedCRMData.painPoints.join(', ')}\n\nRequirements: ${updatedCRMData.requirements.join(', ')}\n\nBudget Discussion: ${updatedCRMData.budgetDiscussion}\n\nCompetition: ${updatedCRMData.competition}\n\nDecision Maker: ${updatedCRMData.decisionMaker}\n\nNext Follow-up: ${updatedCRMData.nextFollowUp}`
-                        }]
-                    };
-                    
-                    const dealResponse = await fetch('https://www.zohoapis.com/crm/v3/Deals', {
+                    const dealResponse = await fetch('/.netlify/functions/zoho-crm', {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${settings.zohoAccessToken}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(dealData)
+                        body: JSON.stringify({
+                            action: 'createDeal',
+                            data: {
+                                dealName: updatedCRMData.dealInfo.dealName,
+                                stage: updatedCRMData.dealInfo.stage || 'Qualification',
+                                probability: updatedCRMData.dealInfo.probability || 25,
+                                value: updatedCRMData.dealInfo.value || '',
+                                expectedCloseDate: updatedCRMData.dealInfo.expectedCloseDate || '',
+                                contactId: contactId || '',
+                                description: `Meeting Outcome: ${updatedCRMData.meetingOutcome}\n\nPain Points: ${updatedCRMData.painPoints.join(', ')}\n\nRequirements: ${updatedCRMData.requirements.join(', ')}\n\nBudget Discussion: ${updatedCRMData.budgetDiscussion}\n\nCompetition: ${updatedCRMData.competition}\n\nDecision Maker: ${updatedCRMData.decisionMaker}\n\nNext Follow-up: ${updatedCRMData.nextFollowUp}`
+                            }
+                        })
                     });
                     
                     if (dealResponse.ok) {
                         const dealResult = await dealResponse.json();
-                        console.log('Deal created:', dealResult.data[0].details.id);
-                        showStatus('✅ Deal created in Zoho CRM', 'success');
+                        if (dealResult.success) {
+                            console.log('Deal created:', dealResult.dealId);
+                            showStatus('✅ Deal created in Zoho CRM', 'success');
+                        } else {
+                            console.error('Deal creation failed:', dealResult.error);
+                            showStatus('❌ Failed to create deal', 'error');
+                        }
                     } else {
                         console.error('Deal creation failed:', await dealResponse.text());
                         showStatus('❌ Failed to create deal', 'error');
