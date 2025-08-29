@@ -20,7 +20,16 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS'
   };
 
-  // Very basic debug - return immediately for GET requests
+  // Handle preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
+  }
+
+  // Debug endpoint for GET requests
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
@@ -39,18 +48,7 @@ exports.handler = async (event, context) => {
     };
   }
 
-
-
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
-  }
-
-  // Only try to parse JSON for POST requests
+  // Handle POST requests
   if (event.httpMethod === 'POST') {
     try {
       const { action, data } = JSON.parse(event.body);
@@ -81,6 +79,13 @@ exports.handler = async (event, context) => {
       };
     }
   }
+
+  // If we get here, it's an unsupported method
+  return {
+    statusCode: 405,
+    headers,
+    body: JSON.stringify({ error: 'Method not allowed' })
+  };
 };
 
 async function createContact(contactData, headers) {
@@ -128,23 +133,23 @@ async function createContact(contactData, headers) {
         })
       };
     }
-      } catch (error) {
-      console.error('Contact creation error:', error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Internal server error during contact creation',
-          debug: {
-            envVars: {
-              clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
-              accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET'
-            }
+  } catch (error) {
+    console.error('Contact creation error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error during contact creation',
+        debug: {
+          envVars: {
+            clientId: ZOHO_CLIENT_ID ? 'SET' : 'NOT SET',
+            accessToken: ZOHO_ACCESS_TOKEN ? 'SET' : 'NOT SET'
           }
-        })
-      };
-    }
+        }
+      })
+    };
+  }
 }
 
 async function createDeal(dealData, headers) {
