@@ -66,33 +66,36 @@ exports.handler = async (event, context) => {
     };
   }
 
-  try {
-    const { action, data } = JSON.parse(event.body);
+  // Only try to parse JSON for POST requests
+  if (event.httpMethod === 'POST') {
+    try {
+      const { action, data } = JSON.parse(event.body);
 
-    switch (action) {
-      case 'createContact':
-        return await createContact(data, headers);
-      
-      case 'createDeal':
-        return await createDeal(data, headers);
-      
-      case 'searchContact':
-        return await searchContact(data, headers);
-      
-      default:
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Invalid action' })
-        };
+      switch (action) {
+        case 'createContact':
+          return await createContact(data, headers);
+        
+        case 'createDeal':
+          return await createDeal(data, headers);
+        
+        case 'searchContact':
+          return await searchContact(data, headers);
+        
+        default:
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Invalid action' })
+          };
+      }
+    } catch (error) {
+      console.error('Function error:', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Internal server error' })
+      };
     }
-  } catch (error) {
-    console.error('Function error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'Internal server error' })
-    };
   }
 };
 
