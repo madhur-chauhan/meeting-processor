@@ -64,25 +64,34 @@ exports.handler = async (event, context) => {
   // Handle POST requests
   if (event.httpMethod === 'POST') {
     try {
+      console.log('Parsing POST request body...');
       const { action, data } = JSON.parse(event.body);
+      console.log('Action:', action);
+      console.log('Data keys:', Object.keys(data || {}));
 
       switch (action) {
         case 'updateCRM':
+          console.log('Calling updateCRM...');
           return await updateCRM(data, headers);
         
         case 'createContact':
+          console.log('Calling createContact...');
           return await createContact(data, headers);
         
         case 'createContactAndMeeting':
+          console.log('Calling createContactAndMeeting...');
           return await createContactAndMeeting(data, headers);
         
         case 'createDeal':
+          console.log('Calling createDeal...');
           return await createDeal(data, headers);
         
         case 'searchContact':
+          console.log('Calling searchContact...');
           return await searchContact(data, headers);
         
         default:
+          console.log('Invalid action:', action);
           return {
             statusCode: 400,
             headers,
