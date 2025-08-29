@@ -2293,6 +2293,40 @@ Transcript: ${transcript}`;
                         if (crmResult.success) {
                             console.log('CRM updated successfully:', crmResult);
                             showStatus(`✅ ${crmResult.message}`, 'success');
+                        } else if (crmResult.action === 'ask_user') {
+                            // Ask user if they want to create a new contact
+                            const createContact = confirm(`${crmResult.message}\n\nEmail: ${crmResult.email}`);
+                            
+                            if (createContact) {
+                                // User wants to create contact, call the createContactAndMeeting function
+                                const createResponse = await fetch('/.netlify/functions/zoho-crm', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        action: 'createContactAndMeeting',
+                                        data: updatedCRMData
+                                    })
+                                });
+                                
+                                if (createResponse.ok) {
+                                    const createResult = await createResponse.json();
+                                    if (createResult.success) {
+                                        console.log('Contact and meeting created successfully:', createResult);
+                                        showStatus(`✅ ${createResult.message}`, 'success');
+                                    } else {
+                                        console.error('Contact creation failed:', createResult.error);
+                                        showStatus(`❌ Contact creation failed: ${createResult.error}`, 'error');
+                                    }
+                                } else {
+                                    console.error('Contact creation failed:', await createResponse.text());
+                                    showStatus('❌ Contact creation failed', 'error');
+                                }
+                            } else {
+                                // User doesn't want to create contact
+                                showStatus('⚠️ CRM update cancelled - no contact created', 'info');
+                            }
                         } else {
                             console.error('CRM update failed:', crmResult.error);
                             showStatus(`❌ CRM update failed: ${crmResult.error}`, 'error');
